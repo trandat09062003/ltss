@@ -1,0 +1,26 @@
+=== PHÂN TÍCH LÝ THUYẾT TRUY CẬP VRAM CỦA KERNEL FUSION ===
+N =    100,000: Non-fused =   3.81 MB | Fused =   1.53 MB | Tiết kiệm: 60.0%
+N =  1,000,000: Non-fused =  38.15 MB | Fused =  15.26 MB | Tiết kiệm: 60.0%
+N = 10,000,000: Non-fused = 381.47 MB | Fused = 152.59 MB | Tiết kiệm: 60.0%
+
+=======================================================
+   BENCHMARK KERNEL FUSION TRÊN GPU NVIDIA (N = 10,000,000)
+=======================================================
+Lý thuyết lưu lượng VRAM:
+  - Non-fused VRAM Traffic : 381.47 MB
+  - Fused VRAM Traffic     : 152.59 MB
+  - Tiết kiệm băng thông   : 60.0%
+
+[*] Đang khởi tạo bộ nhớ GPU...
+[*] Đang đo đạc Non-Fused Baseline (4 kernels)...
+[*] Đang biên dịch Fused Kernel qua MiniCompiler (NVRTC JIT)...
+[*] Đang đo đạc Fused Kernel (1 kernel duy nhất)...
+
+==================== KẾT QUẢ ĐO ĐẠC ====================
+1. Non-Fused Latency :   1.2084 ms | Traffic: 381.5 MB | Achieved BW: 331.02 GB/s
+2. Fused Latency     :   0.4765 ms | Traffic: 152.6 MB | Achieved BW: 335.77 GB/s
+--------------------------------------------------------
+==> TỐC ĐỘ TĂNG (Speedup): 2.54x (Nhanh hơn gấp 2.54 lần!)
+==> TIẾT KIỆM LƯU LƯỢNG  : 60.0% VRAM bandwidth
+========================================================
+
