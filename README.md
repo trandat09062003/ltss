@@ -1,94 +1,20 @@
-# Mini Compiler cho Deep Learning: Autograd + Kernel Fusion
-> **Môn học:** Lập Trình Song Song (Parallel Programming) - HUST  
-> **Đề tài 3:** Mini compiler cho Deep Learning: autograd + kernel fusion  
-> **Báo cáo chi tiết & Số liệu thực nghiệm:** Xem [BAO_CAO_KET_QUA.md](BAO_CAO_KET_QUA.md)
+# Mini Compiler cho Deep Learning: Autograd Engine & Kernel Fusion
+
+Đồ án môn học **Lập trình song song** – Trường Công nghệ Thông tin & Truyền thông, Đại học Bách Khoa Hà Nội (HUST).
+
+Hệ thống hiện thực một trình biên dịch thu nhỏ (Mini Compiler) cho Deep Learning, mô phỏng lại nguyên lý cốt lõi của các trình biên dịch công nghiệp như **PyTorch TorchInductor**, **OpenAI Triton** và **Google XLA**:
+1. Xây dựng đồ thị tính toán có hướng (DAG) và động cơ tự động tính đạo hàm ngược (Reverse-mode Automatic Differentiation).
+2. Tự động gom cụm các chuỗi toán tử xử lý theo từng phần tử liên tiếp (ví dụ: $X \cdot W + B \to \text{ReLU} \to \text{Dropout}$) thành một kernel duy nhất (**Kernel Fusion**).
+3. Tự động sinh mã nguồn **CUDA C++** lúc chạy (JIT) và nạp trực tiếp vào GPU thông qua **NVRTC** (*NVIDIA Runtime Compilation*).
+4. Phân tích định lượng và chứng minh thực nghiệm nguyên nhân tăng tốc: **Loại bỏ việc đọc/ghi mảng trung gian qua VRAM, chuyển toàn bộ tính toán trung gian lên thanh ghi (Registers)**.
+
+> 📄 **Báo cáo kỹ thuật chi tiết:** Xem tại [BAO_CAO_KET_QUA.md](BAO_CAO_KET_QUA.md).
 
 ---
 
-## 📌 1. Mục tiêu Đề tài
-- Tự viết engine tự động đạo hàm (**Reverse-mode Autograd**), xây dựng đồ thị tính toán (**Computational Graph / DAG**).
-- Tự động nhận diện và gom cụm chuỗi phép toán liên tiếp (ví dụ: `x * w + b -> ReLU -> Dropout`) thành một kernel duy nhất (**Kernel Fusion**).
-- Tự động sinh mã nguồn **CUDA C++** lúc chạy (JIT) và biên dịch nạp vào GPU bằng **NVRTC** (*NVIDIA Runtime Compilation*).
-- Giải thích và chứng minh định lượng cơ chế tối ưu: **Kernel Fusion giúp loại bỏ việc đọc/ghi mảng trung gian vào Global Memory (VRAM), tận dụng tốc độ của Registers**.
+## 1. Kết Quả Đo Đạc Thực Tế Trên GPU NVIDIA GeForce RTX 3060
 
----
-
-## 🏗️ 2. Cấu trúc Thư mục Dự án
-
-```text
-ltss/
-│
-├── mini_compiler/               # Mã nguồn chính của Mini Compiler
-│   ├── core/                    # Computational Graph & Autograd Engine
-│   │   ├── tensor.py            # Lớp Tensor, reverse-mode autodiff, topo sort
-│   │   ├── ops.py               # Các toán tử: Add, Mul, ReLU, Dropout, MatMul
-│   │   └── graph.py             # Biểu diễn DAG, debug và sinh Mermaid diagram
-│   │
-│   ├── optimizer/               # Mid-end Graph Optimizer
-│   │   └── fusion.py            # Thuật toán gom cụm (Kernel Fusion pass)
-│   │
-│   ├── codegen/                 # Backend Code Generator
-│   │   └── cuda_codegen.py      # Sinh mã CUDA C++ cho kernel fused & single op
-│   │
-│   ├── runtime/                 # JIT Runtime Execution
-│   │   └── jit_nvrtc.py         # NVRTC compiler, CUDA Events timer, CPU fallback
-│   │
-│   └── compiler.py              # Pipeline tích hợp hoàn chỉnh (MiniCompiler)
-│
-├── benchmark/                   # Script đo đạc & phân tích hiệu năng
-│   └── benchmark_fusion.py      # So sánh Non-fused vs Fused vs PyTorch
-│
-├── tests/                       # Unit tests kiểm thử từng thành phần
-│   ├── test_fusion.py           # Kiểm tra pass gom cụm đồ thị
-│   ├── test_codegen.py          # Kiểm tra sinh mã CUDA C++
-│   └── test_compiler.py         # Kiểm tra end-to-end pipeline
-│
-├── notebooks/                   # Jupyter Notebook chạy trực tiếp trên GPU
-│   └── mini_compiler_colab.ipynb # Notebook chạy trực tiếp trên JupyterLab / Colab
-│
-├── BAO_CAO_KET_QUA.md           # Báo cáo thực nghiệm chi tiết kèm số liệu đo đạc
-└── ket_qua_benchmark.txt        # Kết quả benchmark thực tế trên RTX 3060
-```
-
----
-
-## 🚀 3. Hướng dẫn Chạy Thử nghiệm
-
-### Cách 1: Chạy trực tiếp trên JupyterLab / Google Colab (Có GPU NVIDIA)
-1. Mở notebook: [`notebooks/mini_compiler_colab.ipynb`](notebooks/mini_compiler_colab.ipynb).
-2. Chạy toàn bộ các cells để quan sát:
-   - Xây dựng đồ thị & Autograd.
-   - Gộp chuỗi `x * w + b -> ReLU -> Dropout`.
-   - Sinh mã CUDA C++ và JIT compile qua NVRTC.
-   - Đo benchmark thời gian thực tế và vẽ biểu đồ so sánh với PyTorch.
-
-Hoặc chạy trực tiếp trên Terminal của GPU server:
-```bash
-python benchmark/benchmark_fusion.py | tee ket_qua_benchmark.txt
-```
-
-### Cách 2: Chạy kiểm thử trên máy Local (CPU Fallback Mode)
-Hệ thống tích hợp sẵn cơ chế **CPU Fallback** để kiểm tra logic tính toán mà không cần card NVIDIA:
-
-```bash
-# Kiểm tra thuật toán Fusion
-python tests/test_fusion.py
-
-# Kiểm tra bộ sinh mã CUDA C++
-python tests/test_codegen.py
-
-# Kiểm tra toàn bộ compiler pipeline
-python tests/test_compiler.py
-
-# Xem phân tích lý thuyết lưu lượng VRAM
-python benchmark/benchmark_fusion.py
-```
-
----
-
-## 📊 4. Kết Quả Thực Nghiệm Trên GPU NVIDIA GeForce RTX 3060
-
-Số liệu đo đạc thực tế với chuỗi phép toán $N = 10,000,000$ phần tử:
+Kiểm thử với tensor có kích thước $N = 10,000,000$ phần tử kiểu `float32` (tổng dung lượng mỗi tensor $40\text{ MB}$):
 $$Y = \text{Dropout}(\text{ReLU}(X \cdot W + B))$$
 
 ```text
@@ -96,12 +22,80 @@ $$Y = \text{Dropout}(\text{ReLU}(X \cdot W + B))$$
 1. Non-Fused Latency :   1.2084 ms | Traffic: 381.5 MB | Achieved BW: 331.02 GB/s
 2. Fused Latency     :   0.4765 ms | Traffic: 152.6 MB | Achieved BW: 335.77 GB/s
 ----------------------------------------------------------------
-==> TỐC ĐỘ TĂNG (Speedup): 2.54x (Nhanh hơn gấp 2.54 lần!)
+==> TỐC ĐỘ TĂNG (Speedup): 2.54x (Nhanh hơn gấp 2.54 lần)
 ==> TIẾT KIỆM LƯU LƯỢNG  : 60.0% VRAM bandwidth
 ================================================================
 ```
 
-### Vì sao Kernel Fusion nhanh hơn?
-* **Non-fused (4 kernels rời rạc):** Phải lưu 3 mảng trung gian vào VRAM $\rightarrow$ Tổng đọc/ghi: $(6N + 4N) \times 4\text{ bytes} = 40N\text{ bytes} = \mathbf{381.5\text{ MB}}$.
-* **Fused Kernel:** Toàn bộ biến trung gian nằm trên **Registers** $\rightarrow$ Chỉ đọc $X, W, B$ một lần và ghi $Y$ một lần $\rightarrow$ Tổng đọc/ghi: $(3N + 1N) \times 4\text{ bytes} = 16N\text{ bytes} = \mathbf{152.6\text{ MB}}$.
-* **Tiết kiệm chính xác 60.0% lưu lượng VRAM**, đồng thời đạt **$335.77\text{ GB/s}$** ($>93\%$ giới hạn vật lý của RTX 3060).
+* **Băng thông bộ nhớ:** Cả hai kernel đều khai thác **$> 93\%$ băng thông cực đại của RTX 3060** ($335.77\text{ GB/s}$ so với mức trần $360\text{ GB/s}$).
+* **Bản chất tối ưu:** Vì bài toán bị nghẽn ở băng thông bộ nhớ (Memory-bound), khi Fused Kernel cắt giảm lượng đọc/ghi từ $381.5\text{ MB}$ xuống $152.6\text{ MB}$ (giảm $2.5\times$), thời gian chạy giảm tương ứng từ $1.2084\text{ ms}$ xuống $0.4765\text{ ms}$ ($2.54\times$).
+
+---
+
+## 2. Cấu Trúc Mã Nguồn
+
+```text
+ltss/
+├── mini_compiler/               # Mã nguồn chính của Mini Compiler
+│   ├── core/                    # Computational Graph & Autograd Engine
+│   │   ├── tensor.py            # Lớp Tensor, topological sort, lan truyền gradient
+│   │   ├── ops.py               # Các toán tử nguyên thủy: Add, Mul, ReLU, Dropout, MatMul
+│   │   └── graph.py             # Quản lý đồ thị tính toán và xuất cấu trúc DAG
+│   │
+│   ├── optimizer/               # Mid-end Graph Optimizer
+│   │   └── fusion.py            # Thuật toán gom cụm (Kernel Fusion pass)
+│   │
+│   ├── codegen/                 # Backend Code Generator
+│   │   └── cuda_codegen.py      # Bộ sinh mã CUDA C++ tận dụng thanh ghi và in-thread PRNG
+│   │
+│   ├── runtime/                 # JIT Runtime Execution
+│   │   └── jit_nvrtc.py         # NVRTC JIT compilation, caching, CUDA Events timer
+│   │
+│   └── compiler.py              # Pipeline tích hợp toàn diện (MiniCompiler)
+│
+├── benchmark/                   # Module đo đạc hiệu năng
+│   └── benchmark_fusion.py      # Benchmark Non-fused vs Fused với CUDA Events
+│
+├── tests/                       # Unit tests kiểm tra tính đúng đắn
+│   ├── test_fusion.py           # Kiểm tra pass gom cụm trên đồ thị
+│   ├── test_codegen.py          # Kiểm tra mã nguồn CUDA C++ sinh ra
+│   └── test_compiler.py         # Kiểm tra end-to-end pipeline
+│
+├── notebooks/                   # Jupyter Notebook trực quan
+│   └── mini_compiler_colab.ipynb # Notebook chạy trực tiếp trên GPU Server / Google Colab
+│
+├── BAO_CAO_KET_QUA.md           # Báo cáo kỹ thuật chi tiết
+└── ket_qua_benchmark.txt        # Kết quả benchmark log từ GPU RTX 3060
+```
+
+---
+
+## 3. Hướng Dẫn Cài Đặt & Chạy Thử Nghiệm
+
+### Chạy trên Server có GPU NVIDIA (JupyterLab / Linux):
+Yêu cầu môi trường đã có Driver NVIDIA và Python $\ge 3.8$:
+
+```bash
+# 1. Cài đặt các thư viện phụ trợ
+pip install cupy-cuda12x nvidia-cuda-nvrtc-cu12 nvidia-cuda-runtime-cu12 matplotlib pandas
+
+# 2. Thiết lập đường dẫn thư viện NVRTC
+export LD_LIBRARY_PATH=$(python -c "import os, nvidia.cuda_nvrtc; print(os.path.dirname(nvidia.cuda_nvrtc.__file__) + '/lib')"):$LD_LIBRARY_PATH
+
+# 3. Chạy benchmark đo đạc và lưu kết quả
+python benchmark/benchmark_fusion.py | tee ket_qua_benchmark.txt
+```
+
+### Chạy trên máy cá nhân không có GPU (CPU Fallback Mode):
+Hệ thống tích hợp sẵn cơ chế giả lập CPU để kiểm tra tính đúng đắn của giải thuật:
+
+```bash
+# Kiểm tra pass gom cụm đồ thị
+python tests/test_fusion.py
+
+# Kiểm tra bộ sinh mã CUDA C++
+python tests/test_codegen.py
+
+# Kiểm tra pipeline biên dịch
+python tests/test_compiler.py
+```
