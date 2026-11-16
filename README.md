@@ -1,6 +1,6 @@
 # Mini Compiler cho Deep Learning: Autograd Engine & Kernel Fusion
 
-Đồ án môn học **Lập trình song song** – Trường Công nghệ Thông tin & Truyền thông, Đại học Bách Khoa Hà Nội (HUST).
+Đồ án môn học **Lập trình song song** 
 
 Hệ thống hiện thực một trình biên dịch thu nhỏ (Mini Compiler) cho Deep Learning, mô phỏng lại nguyên lý cốt lõi của các trình biên dịch công nghiệp như **PyTorch TorchInductor**, **OpenAI Triton** và **Google XLA**:
 1. Xây dựng đồ thị tính toán có hướng (DAG) và động cơ tự động tính đạo hàm ngược (Reverse-mode Automatic Differentiation).
