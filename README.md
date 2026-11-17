@@ -1,8 +1,6 @@
 <div align="center">
 
 # Mini Compiler cho Deep Learning: Autograd Engine & Kernel Fusion JIT
-### Trường Công nghệ Thông tin & Truyền thông – Đại học Bách Khoa Hà Nội (HUST)
-**Học phần:** Lập trình song song (Parallel Programming) | **GVHD:** TS. Phạm Doãn Tĩnh
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![CUDA](https://img.shields.io/badge/CUDA-12.x-green.svg)](https://developer.nvidia.com/cuda-toolkit)
